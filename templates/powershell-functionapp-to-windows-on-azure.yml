@@ -1,0 +1,58 @@
+trigger:
+  branches:
+    include:
+    - '*'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  dockerRegistryServiceConnection: 'your-docker-registry-service-connection'
+  dockerImageName: 'your-image-name'
+  jdkVersion: '11'
+  rhelVersion: '7'
+
+steps:
+- checkout: self
+
+- task: Docker@2
+  displayName: 'Build Docker image'
+  inputs:
+    command: 'build'
+    Dockerfile: '**/Dockerfile'
+    buildContext: '.'
+    containerRegistry: '$(dockerRegistryServiceConnection)'
+    repository: '$(dockerImageName)'
+    tags: |
+      $(Build.BuildId)
+      latest
+
+- task: Docker@2
+  displayName: 'Push Docker image'
+  inputs:
+    command: 'push'
+    containerRegistry: '$(dockerRegistryServiceConnection)'
+    repository: '$(dockerImageName)'
+    tags: |
+      $(Build.BuildId)
+      latest
+
+- script: |
+    echo "Configuring Maven"
+    # Add Maven configuration commands here
+
+  displayName: 'Configure Maven'
+
+- script: |
+    echo "Running setup-script.sh"
+    chmod +x setup-script.sh
+    ./setup-script.sh
+
+  displayName: 'Run setup-script.sh'
+
+- script: |
+    echo "Copying some-file1.txt and some-file2.txt to the container's /tmp directory"
+    docker cp some-file1.txt $(dockerImageName):/tmp/some-file1.txt
+    docker cp some-file2.txt $(dockerImageName):/tmp/some-file2.txt
+
+  displayName: 'Copy files to container'
